@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="twitter:player" content="https://jomijo37.github.io/timetable/" />
+    <title>自作タイムテーブル すっきゃねんふぇす (2026.10.18)</title>
+    <style>
+        :root {
+            /* 10/18 会場カラー */
+            --amhall-color: #f39c12;
+            --odyssey-color: #e67e22;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background-color: #fdfaf6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .header-area {
+            flex-shrink: 0;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        h1 {
+            font-size: 1.1rem;
+            margin: 2px 0;
+            color: #d35400;
+        }
+        #current-time-display {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #c00000;
+            margin: 2px 0;
+        }
+        .guide {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .timetable-container {
+            position: relative;
+            overflow: auto;
+            flex-grow: 1;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #d9d9d9;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 400px;
+            position: relative;
+        }
+        
+        th, td {
+            border: 1px solid #d9d9d9;
+            padding: 8px 4px;
+            text-align: center;
+            font-size: 0.85rem;
+            height: 40px;
+            line-height: 1.3;
+        }
+        
+        thead th {
+            position: sticky;
+            top: 0;
+            color: white;
+            z-index: 10;
+            height: 45px;
+        }
+        th.time-header {
+            background-color: #d35400;
+            left: 0;
+            z-index: 12;
+        }
+        
+        th.amhall { background-color: var(--amhall-color); }
+        th.odyssey { background-color: var(--odyssey-color); }
+        
+        .time-col {
+            width: 90px;
+            font-weight: bold;
+            background: #fdf5e6;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            border-right: 2px solid #f39c12;
+        }
+        
+        .break-cell {
+            background-color: #f2f2f2 !important;
+            color: #7f7f7f;
+            font-style: italic;
+            pointer-events: none;
+        }
+        
+        .artist-cell {
+            cursor: pointer;
+            user-select: none;
+            background-color: #ffffff;
+        }
+        .artist-cell:hover {
+            filter: brightness(0.97);
+        }
+
+        .cell-time-sub {
+            display: block;
+            font-size: 0.72rem;
+            color: #666;
+            margin-top: 2px;
+            font-weight: normal;
+        }
+
+        .fav-oshi1 {
+            background-color: #e2f0d9 !important;
+            color: #385723 !important;
+            font-weight: bold;
+            box-shadow: inset 0 0 0 2px #70ad47 !important;
+        }
+        .fav-oshi1 .cell-time-sub { color: #385723 !important; }
+        
+        .fav-oshi2 {
+            background-color: #fce4d6 !important;
+            color: #c65911 !important;
+            font-weight: bold;
+            box-shadow: inset 0 0 0 2px #ed7d31 !important;
+        }
+        .fav-oshi2 .cell-time-sub { color: #c65911 !important; }
+
+        .active-live {
+            position: relative;
+        }
+        .active-live::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 3px solid #ffc000;
+            box-sizing: border-box;
+            pointer-events: none;
+            animation: border-pulse 1.5s infinite;
+        }
+        
+        #time-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #ff0000;
+            z-index: 8;
+            pointer-events: none;
+        }
+        #time-line::after {
+            content: "NOW";
+            position: absolute;
+            left: 90px;
+            top: -9px;
+            background: #ff0000;
+            color: white;
+            font-size: 0.6rem;
+            padding: 1px 3px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .modal-overlay.show {
+            opacity: 1; pointer-events: auto;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 85%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            animation: modalPop 0.2s ease-out;
+        }
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #d35400;
+        }
+        .goods-info-box {
+            background-color: #fdf5e6;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            margin-bottom: 15px;
+            border-left: 4px solid #d35400;
+            text-align: left;
+        }
+        .goods-info-line {
+            margin: 6px 0;
+            line-height: 1.4;
+        }
+        
+        .warning-text {
+            color: #c00000;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 2px;
+            font-size: 0.85rem;
+        }
+        
+        .oshi-btn-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .oshi-btn {
+            flex: 1;
+            padding: 8px 0;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: #fff;
+        }
+        .oshi-btn.btn-oshi1 { background-color: #e2f0d9; color: #385723; border-color: #70ad47; }
+        .oshi-btn.btn-oshi2 { background-color: #fce4d6; color: #c65911; border-color: #ed7d31; }
+        .oshi-btn.active { box-shadow: 0 0 0 3px #333; }
+        
+        .close-btn {
+            width: 100%;
+            padding: 10px 0;
+            background-color: #d35400;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        @keyframes modalPop {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes border-pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-area">
+        <h1>すっきゃねんふぇす (2026.10.18)</h1>
+        <div id="current-time-display">現在時刻: --:--:--</div>
+        <div class="guide">枠をタップすると物販の場所（amHALLロビー等）と時間を確認できます</div>
+    </div>
+
+    <div class="timetable-container" id="container">
+        <table id="target-table">
+            <thead>
+                <tr>
+                    <th class="time-header">時間</th>
+                    <th class="amhall">梅田 amHALL</th>
+                    <th class="odyssey">ODYSSEY</th>
+                </tr>
+            </thead>
+            <tbody id="timetable-body">
+                <!-- JS生成 -->
+            </tbody>
+        </table>
+        <div id="time-line" style="display: none;"></div>
+    </div>
+
+    <!-- ポップアップ画面 -->
+    <div class="modal-overlay" id="goods-modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-artist-name">グループ名</div>
+            <div class="goods-info-box">
+                <div class="goods-info-line">🎤 <b>ライブ枠:</b> <span id="modal-live-time">-</span></div>
+                <div class="goods-info-line">🎪 <b>ステージ:</b> <span id="modal-live-venue">-</span></div>
+                <div class="goods-info-line">📍 <b>物販エリア:</b> <div id="modal-goods-location" style="font-weight: bold; color: #c0392b;">-</div></div>
+                <div class="goods-info-line">🕒 <b>物販時間:</b> <span id="modal-goods-time">-</span></div>
+            </div>
+            <div class="oshi-btn-group">
+                <button class="oshi-btn btn-oshi1" id="btn-set-oshi1">★ 推し1</button>
+                <button class="oshi-btn btn-oshi2" id="btn-set-oshi2">🔥 推し2</button>
+                <button class="oshi-btn" id="btn-set-normal">解除</button>
+            </div>
+            <button class="close-btn" id="btn-modal-close">閉じる</button>
+        </div>
+    </div>
+
+<script>
+// 画像より完全抽出した10/18ライブ・物販データ
+const liveData = {
+    "梅田 amHALL": [
+        {start: "10:45", end: "11:05", name: "#BEMYLOVE", goods: "A", goodsStart: "11:10", goodsEnd: "12:10"},
+        {start: "11:05", end: "11:25", name: "ハピネスクラッカー！", goods: "B", goodsStart: "11:30", goodsEnd: "12:30"},
+        {start: "11:25", end: "11:45", name: "ЯiM:MiR", goods: "C", goodsStart: "11:50", goodsEnd: "12:50"},
+        {start: "11:45", end: "11:50", name: "調整"},
+        {start: "11:50", end: "12:10", name: "てんぽぷりも♪", goods: "A", goodsStart: "12:15", goodsEnd: "13:15"},
+        {start: "12:10", end: "12:30", name: "あおぞらをキミに", goods: "B", goodsStart: "12:35", goodsEnd: "13:35"},
+        {start: "12:30", end: "12:50", name: "にぃよん！", goods: "C", goodsStart: "12:55", goodsEnd: "13:55"},
+        {start: "12:50", end: "12:55", name: "調整"},
+        {start: "12:55", end: "13:15", name: "Poifull", goods: "A", goodsStart: "13:20", goodsEnd: "14:20"},
+        {start: "13:15", end: "13:35", name: "SANUGLOW", goods: "B", goodsStart: "13:40", goodsEnd: "14:40"},
+        {start: "13:35", end: "13:55", name: "脳内パステル", goods: "C", goodsStart: "14:00", goodsEnd: "15:00"},
+        {start: "13:55", end: "14:00", name: "調整"},
+        {start: "14:00", end: "14:20", name: "W. ダブルヴィー", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
+        {start: "14:20", end: "14:40", name: "Qu♡Aly", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
+        {start: "14:40", end: "15:00", name: "キューハチパーセント！", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
+        {start: "15:15", end: "16:15", name: "中物販"},
+        {start: "16:30", end: "16:50", name: "入場開始"},
+        {start: "16:50", end: "17:10", name: "ワッツ◎さーくる", goods: "A", goodsStart: "17:15", goodsEnd: "18:15"},
+        {start: "17:10", end: "17:30", name: "NEO BREAK", goods: "B", goodsStart: "17:35", goodsEnd: "18:35"},
+        {start: "17:30", end: "17:50", name: "SPRISE", goods: "C", goodsStart: "17:55", goodsEnd: "18:55"},
+        {start: "17:50", end: "17:55", name: "調整"},
+        {start: "17:55", end: "18:15", name: "すーぱーぷーばぁー!!", goods: "A", goodsStart: "18:20", goodsEnd: "19:20"},
+        {start: "18:15", end: "18:35", name: "宇宙∞プラネクシア", goods: "B", goodsStart: "18:40", goodsEnd: "19:40"},
+        {start: "18:35", end: "18:55", name: "脳内パステル", goods: "C", goodsStart: "19:00", goodsEnd: "20:00"},
+        {start: "18:55", end: "19:00", name: "調整"},
+        {start: "19:00", end: "19:20", name: "Qu♡Aly", goods: "終演後", goodsStart: "20:10", goodsEnd: "21:10"},
+        {start: "19:20", end: "19:40", name: "W. ダブルヴィー", goods: "終演後", goodsStart: "20:10", goodsEnd: "21:10"},
+        {start: "19:40", end: "20:00", name: "ワッツ◎さーくる", goods: "終演後", goodsStart: "20:10", goodsEnd: "21:10"},
+        {start: "20:10", end: "21:10", name: "終演後物販"}
+    ],
+    "ODYSSEY": [
+        {start: "10:45", end: "11:05", name: "+Alpha", goods: "ODYSSEYロビー①", goodsStart: "11:25", goodsEnd: "12:25"},
+        {start: "11:05", end: "11:25", name: "キューハチパーセント！", goods: "D", goodsStart: "12:40", goodsEnd: "13:40"},
+        {start: "11:25", end: "11:45", name: "宇宙∞プラネクシア", goods: "E", goodsStart: "12:40", goodsEnd: "13:40"},
+        {start: "11:45", end: "11:50", name: "調整"},
+        {start: "11:50", end: "12:10", name: "ChanceMovement", goods: "F", goodsStart: "12:40", goodsEnd: "13:40"},
+        {start: "12:10", end: "12:30", name: "Para Milia", goods: "D", goodsStart: "12:50", goodsEnd: "13:50"},
+        {start: "12:30", end: "12:50", name: "ちょこみんと", goods: "E", goodsStart: "13:10", goodsEnd: "14:10"},
+        {start: "12:50", end: "12:55", name: "調整"},
+        {start: "12:55", end: "13:15", name: "ボクセカ", goods: "F", goodsStart: "13:35", goodsEnd: "14:35"},
+        {start: "13:15", end: "13:35", name: "Hello♡DayDream!", goods: "D", goodsStart: "13:55", goodsEnd: "14:55"},
+        {start: "13:35", end: "13:55", name: "NEO BREAK", goods: "E", goodsStart: "14:15", goodsEnd: "15:15"},
+        {start: "13:55", end: "14:00", name: "調整"},
+        {start: "14:00", end: "14:20", name: "COzMIC ぱれーど", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
+        {start: "14:20", end: "14:40", name: "星もつもれば惑星となる！", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
+        {start: "14:40", end: "15:00", name: "ハピネスクラッカー！", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
+        {start: "15:15", end: "16:15", name: "中物販"},
+        {start: "16:30", end: "16:50", name: "入場開始"},
+        {start: "16:50", end: "17:10", name: "ChanceMovement", goods: "D", goodsStart: "17:30", goodsEnd: "18:30"},
+        {start: "17:10", end: "17:30", name: "なにわばれっと", goods: "E", goodsStart: "17:50", goodsEnd: "18:50"},
+        {start: "17:30", end: "17:50", name: "Para Milia", goods: "F", goodsStart: "18:10", goodsEnd: "19:10"},
+        {start: "17:50", end: "17:55", name: "調整"},
+        {start: "17:55", end: "18:15", name: "Lumi Prima", goods: "D", goodsStart: "18:35", goodsEnd: "19:35"},
+        {start: "18:15", end: "18:35", name: "ЯiM:MiR", goods: "E", goodsStart: "18:55", goodsEnd: "19:55"},
+        {start: "18:35", end: "18:55", name: "あおぞらをキミに", goods: "F", goodsStart: "19:15", goodsEnd: "20:15"},
+        {start: "18:55", end: "19:00", name: "調整"},
+        {start: "19:00", end: "19:20", name: "Poifull", goods: "終演後", goodsStart: "20:20", goodsEnd: "21:20"},
+        {start: "19:20", end: "19:40", name: "星もつもれば惑星となる！", goods: "終演後", goodsStart: "20:20", goodsEnd: "21:20"},
+        {start: "19:40", end: "20:00", name: "にぃよん！", goods: "終演後", goodsStart: "20:20", goodsEnd: "21:20"},
+        {start: "20:00", end: "20:20", name: "ボクセカ", goods: "終演後", goodsStart: "20:20", goodsEnd: "21:20"},
+        {start: "20:30", end: "21:30", name: "終演後物販"}
+    ]
+};
+
+const startTimeStr = "10:45";
+const endTimeStr = "21:30";
+const venues = ["梅田 amHALL", "ODYSSEY"];
+
+let favorites = {};
+try {
+    const savedData = localStorage.getItem('timetable_favs_1018');
+    if (savedData) {
+        favorites = JSON.parse(savedData);
+    }
+} catch(e) {
+    console.warn("お気に入り機能の読み込みが制限された環境です");
+}
+
+function timeToMin(tStr) {
+    if(!tStr) return 0;
+    const [h, m] = tStr.split(':').map(Number);
+    return h * 60 + m;
+}
+
+const startMin = timeToMin(startTimeStr);
+const endMin = timeToMin(endTimeStr);
+const tbody = document.getElementById("timetable-body");
+const rowMap = {};
+
+let selectedArtist = null;
+
+try {
+    for (let m = startMin; m < endMin; m += 5) {
+        const hStr = String(Math.floor(m / 60)).padStart(2, '0');
+        const mStr = String(m % 60).padStart(2, '0');
+        const timeLabel = `${hStr}:${mStr}`;
+        
+        const nextM = m + 5;
+        const nextHStr = String(Math.floor(nextM / 60)).padStart(2, '0');
+        const nextMStr = String(nextM % 60).padStart(2, '0');
+        
+        const row = document.createElement("tr");
+        row.dataset.min = m;
+        
+        const timeTd = document.createElement("td");
+        timeTd.className = "time-col";
+        timeTd.textContent = `${timeLabel}-${nextHStr}:${nextMStr}`;
+        row.appendChild(timeTd);
+        
+        venues.forEach((v, index) => {
+            const td = document.createElement("td");
+            td.id = `cell-${m}-${index}`;
+            
+            const matched = liveData[v].find(item => {
+                const s = timeToMin(item.start);
+                const e = timeToMin(item.end);
+                return m >= s && m < e;
+            });
+            
+            if (matched) {
+                const duration = timeToMin(matched.end) - timeToMin(matched.start);
+                const liveTimeText = `${matched.start}-${matched.end}`;
+                
+                if (matched.name.includes("調整") || matched.name.includes("入場開始") || matched.name.includes("物販")) {
+                    td.innerHTML = `${matched.name}<span class="cell-time-sub">${liveTimeText} (${duration}分)</span>`;
+                    td.className = "break-cell";
+                } else {
+                    td.className = "artist-cell";
+                    td.dataset.artist = matched.name;
+                    td.dataset.duration = duration;
+                    td.dataset.livetime = liveTimeText;
+                    
+                    const favState = favorites[matched.name] || 0;
+                    applyFavStyle(td, favState, matched.name, duration, liveTimeText);
+
+                    td.addEventListener('click', () => {
+                        openGoodsModal(matched, duration, liveTimeText, v);
+                    });
+                }
+            }
+            row.appendChild(td);
+        });
+        
+        tbody.appendChild(row);
+        rowMap[m] = row;
+    }
+
+    // セル結合処理
+    venues.forEach((v, vIndex) => {
+        let startRowMin = startMin;
+        while (startRowMin < endMin) {
+            const cell = document.getElementById(`cell-${startRowMin}-${vIndex}`);
+            const val = cell ? cell.dataset.artist || cell.textContent : "";
+            
+            if (val !== "") {
+                let nextMin = startRowMin + 5;
+                let span = 1;
+                while (nextMin < endMin) {
+                    const nextCell = document.getElementById(`cell-${nextMin}-${vIndex}`);
+                    const nextVal = nextCell ? nextCell.dataset.artist || nextCell.textContent : "";
+                    if (nextCell && nextVal === val) {
+                        nextCell.style.display = "none";
+                        span++;
+                        nextMin += 5;
+                    } else {
+                        break;
+                    }
+                }
+                if (span > 1) {
+                    cell.rowSpan = span;
+                }
+                startRowMin = nextMin;
+            } else {
+                startRowMin += 5;
+            }
+        }
+    });
+} catch(e) {
+    console.error("テーブル生成エラー:", e);
+}
+
+function applyFavStyle(element, state, name, duration, liveTimeText) {
+    element.classList.remove('fav-oshi1', 'fav-oshi2');
+    let titlePrefix = "";
+    if (state === 1) {
+        element.classList.add('fav-oshi1');
+        titlePrefix = "★ ";
+    } else if (state === 2) {
+        element.classList.add('fav-oshi2');
+        titlePrefix = "🔥 ";
+    }
+    element.innerHTML = `${titlePrefix}${name}<span class="cell-time-sub">${liveTimeText} (${duration}分)</span>`;
+}
+
+// 📦 物販会場の文字列を生成する関数（画像下部の案内に準拠）
+function getDetailedLocation(goodsType) {
+    if (!goodsType || goodsType === "なし" || goodsType === "-") {
+        return "情報なし・公式SNS等をご参照ください";
+    }
+    
+    // A,B,C は amHALL ロビー
+    if (goodsType === "A" || goodsType === "B" || goodsType === "C") {
+        return `梅田 amHALL ロビー [${goodsType}]`;
+    }
+    // D,E,F は 三共梅田ビル B1F
+    if (goodsType === "D" || goodsType === "E" || goodsType === "F") {
+        return `三共梅田ビル 梅田 B1F レンタルスペース貸会議室<br><span class="warning-text">⚠️ 会場外への移動が必要です [${goodsType}]</span>`;
+    }
+    // ODYSSEYロビー
+    if (goodsType === "ODYSSEYロビー①") {
+        return `ODYSSEY ロビー①`;
+    }
+    // 中物販・終演後など
+    if (goodsType === "中物販" || goodsType === "終演後" || goodsType === "終演後物販") {
+        return `各ライブハウス内 (${goodsType})`;
+    }
+    
+    return `${goodsType} (会場指定スペース)`;
+}
+
+const modal = document.getElementById('goods-modal');
+function openGoodsModal(artistObj, duration, liveTimeText, currentVenue) {
+    selectedArtist = artistObj.name;
+    
+    document.getElementById('modal-artist-name').textContent = artistObj.name;
+    document.getElementById('modal-live-venue').textContent = currentVenue;
+    
+    const locationHTML = getDetailedLocation(artistObj.goods);
+    document.getElementById('modal-goods-location').innerHTML = locationHTML;
+    
+    if(artistObj.goodsStart && artistObj.goodsEnd && artistObj.goodsStart !== "-") {
+        document.getElementById('modal-goods-time').textContent = `${artistObj.goodsStart} 〜 ${artistObj.goodsEnd}`;
+    } else {
+        document.getElementById('modal-goods-time').textContent = "特典会なし / 時間不明";
+    }
+    document.getElementById('modal-live-time').textContent = `${artistObj.start} 〜 ${artistObj.end} (${duration}分間)`;
+    
+    const currentState = favorites[artistObj.name] || 0;
+    updateModalOshiButtons(currentState);
+    
+    modal.classList.add('show');
+}
+
+function updateModalOshiButtons(state) {
+    document.getElementById('btn-set-oshi1').classList.remove('active');
+    document.getElementById('btn-set-oshi2').classList.remove('active');
+    document.getElementById('btn-set-normal').classList.remove('active');
+    
+    if(state === 1) document.getElementById('btn-set-oshi1').classList.add('active');
+    else if(state === 2) document.getElementById('btn-set-oshi2').classList.add('active');
+    else document.getElementById('btn-set-normal').classList.add('active');
+}
+
+function handleOshiChange(nextState) {
+    if (!selectedArtist) return;
+    
+    document.querySelectorAll(`[data-artist="${CSS.escape(selectedArtist)}"]`).forEach(cell => {
+        applyFavStyle(cell, nextState, selectedArtist, cell.dataset.duration, cell.dataset.livetime);
+    });
+    
+    favorites[selectedArtist] = nextState;
+    try {
+        localStorage.setItem('timetable_favs_1018', JSON.stringify(favorites));
+    } catch(e) {
+        console.warn("お気に入り機能の保存が制限されています");
+    }
+    updateModalOshiButtons(nextState);
+}
+
+document.getElementById('btn-set-oshi1').addEventListener('click', () => handleOshiChange(1));
+document.getElementById('btn-set-oshi2').addEventListener('click', () => handleOshiChange(2));
+document.getElementById('btn-set-normal').addEventListener('click', () => handleOshiChange(0));
+
+document.getElementById('btn-modal-close').addEventListener('click', () => {
+    modal.classList.remove('show');
+});
+modal.addEventListener('click', (e) => {
+    if(e.target === modal) modal.classList.remove('show');
+});
+
+const timeline = document.getElementById("time-line");
+const timeDisplay = document.getElementById("current-time-display");
+let isFirstScroll = true;
+
+function updateTimeline() {
+    const now = new Date();
+    const currentH = now.getHours();
+    const currentM = now.getMinutes();
+    const currentS = now.getSeconds();
+    
+    timeDisplay.textContent = `現在時刻: ${String(currentH).padStart(2,'0')}:${String(currentM).padStart(2,'0')}:${String(currentS).padStart(2,'0')}`;
+    
+    const nowTotalMin = currentH * 60 + currentM;
+    const container = document.getElementById("container");
+    
+    if (nowTotalMin >= startMin && nowTotalMin <= endMin) {
+        const baseMin = Math.floor(nowTotalMin / 5) * 5;
+        const baseRow = rowMap[baseMin];
+        
+        if (baseRow) {
+            timeline.style.display = "block";
+            const rowTop = baseRow.offsetTop;
+            const rowHeight = baseRow.offsetHeight;
+            
+            const secondsIn5Min = (nowTotalMin % 5) * 60 + currentS;
+            const ratio = secondsIn5Min / 300;
+            
+            const lineY = rowTop + (rowHeight * ratio);
+            timeline.style.top = `${lineY}px`;
+            
+            document.querySelectorAll("td").forEach(td => td.classList.remove("active-live"));
+            venues.forEach((v, vIndex) => {
+                const matched = liveData[v].find(item => {
+                    const s = timeToMin(item.start);
+                    const e = timeToMin(item.end);
+                    return nowTotalMin >= s && nowTotalMin < e;
+                });
+                if (matched && !matched.name.includes("調整") && !matched.name.includes("入場開始") && !matched.name.includes("物販")) {
+                    const headMin = Math.floor(timeToMin(matched.start) / 5) * 5;
+                    const activeCell = document.getElementById(`cell-${headMin}-${vIndex}`);
+                    if (activeCell) activeCell.classList.add("active-live");
+                }
+            });
+            
+            if (isFirstScroll) {
+                container.scrollTop = lineY - 80;
+                isFirstScroll = false;
+            }
+        }
+    } else {
+        timeline.style.display = "none";
+        document.querySelectorAll("td").forEach(td => td.classList.remove("active-live"));
+    }
+}
+
+setInterval(updateTimeline, 1000);
+updateTimeline();
+</script>
+
+</body>
+</html>
