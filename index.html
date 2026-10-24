@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="twitter:player" content="https://jomijo37.github.io/timetable/" />
-    <title>自作タイムテーブル すっきゃねんふぇす (2026.10.18)</title>
+    <title>自作タイムテーブル (2026.10.25)</title>
     <style>
         :root {
-            /* 10/18 会場カラー */
-            --amhall-color: #f39c12;
-            --odyssey-color: #e67e22;
+            /* 10/25 会場カラー */
+            --amhall-color: #3498db;
+            --zepp-color: #e83e8c;
+            --varon-color: #e74c3c;
+            --ruido-color: #f39c12;
         }
         * {
             box-sizing: border-box;
@@ -33,7 +34,7 @@
         h1 {
             font-size: 1.1rem;
             margin: 2px 0;
-            color: #d35400;
+            color: #2c3e50;
         }
         #current-time-display {
             font-size: 1.1rem;
@@ -61,7 +62,7 @@
         table {
             border-collapse: collapse;
             width: 100%;
-            min-width: 400px;
+            min-width: 700px;
             position: relative;
         }
         
@@ -79,31 +80,42 @@
             top: 0;
             color: white;
             z-index: 10;
-            height: 45px;
+            height: 40px;
         }
         th.time-header {
-            background-color: #d35400;
+            background-color: #2c3e50;
             left: 0;
             z-index: 12;
         }
         
         th.amhall { background-color: var(--amhall-color); }
-        th.odyssey { background-color: var(--odyssey-color); }
+        th.zepp { background-color: var(--zepp-color); }
+        th.varon { background-color: var(--varon-color); }
+        th.ruido { background-color: var(--ruido-color); }
         
         .time-col {
             width: 90px;
             font-weight: bold;
-            background: #fdf5e6;
+            background: #ecf0f1;
             position: sticky;
             left: 0;
             z-index: 5;
-            border-right: 2px solid #f39c12;
+            border-right: 2px solid #bdc3c7;
         }
         
+        /* 調整時間や物販のセル */
         .break-cell {
             background-color: #f2f2f2 !important;
             color: #7f7f7f;
             font-style: italic;
+            pointer-events: none;
+        }
+        
+        /* 開場（OPEN）のセル：薄い青色に変更 */
+        .open-cell {
+            background-color: #e6f2ff !important;
+            color: #2980b9;
+            font-weight: bold;
             pointer-events: none;
         }
         
@@ -203,28 +215,20 @@
             font-size: 1.1rem;
             font-weight: bold;
             margin-bottom: 12px;
-            color: #d35400;
+            color: #2c3e50;
         }
         .goods-info-box {
-            background-color: #fdf5e6;
+            background-color: #ecf0f1;
             padding: 12px;
             border-radius: 8px;
             font-size: 0.95rem;
             margin-bottom: 15px;
-            border-left: 4px solid #d35400;
+            border-left: 4px solid #2c3e50;
             text-align: left;
         }
         .goods-info-line {
             margin: 6px 0;
             line-height: 1.4;
-        }
-        
-        .warning-text {
-            color: #c00000;
-            font-weight: bold;
-            display: inline-block;
-            margin-top: 2px;
-            font-size: 0.85rem;
         }
         
         .oshi-btn-group {
@@ -250,7 +254,7 @@
         .close-btn {
             width: 100%;
             padding: 10px 0;
-            background-color: #d35400;
+            background-color: #2c3e50;
             color: white;
             border: none;
             border-radius: 6px;
@@ -273,9 +277,9 @@
 <body>
 
     <div class="header-area">
-        <h1>すっきゃねんふぇす (2026.10.18)</h1>
+        <h1>自作タイムテーブル (2026.10.25)</h1>
         <div id="current-time-display">現在時刻: --:--:--</div>
-        <div class="guide">枠をタップすると物販の場所（amHALLロビー等）と時間を確認できます</div>
+        <div class="guide">枠内に開場時間(OPEN)を記載しました。タップで物販情報確認</div>
     </div>
 
     <div class="timetable-container" id="container">
@@ -283,8 +287,10 @@
             <thead>
                 <tr>
                     <th class="time-header">時間</th>
-                    <th class="amhall">梅田 amHALL</th>
-                    <th class="odyssey">ODYSSEY</th>
+                    <th class="amhall">amHALL<span class="venue-open">(OP 9:30/13:30/18:00)</span></th>
+                    <th class="zepp">Zepp Namba<span class="venue-open">(OP 11:40)</span></th>
+                    <th class="varon">心斎橋VARON<span class="venue-open">(OP 10:00)</span></th>
+                    <th class="ruido">OSAKA RUIDO<span class="venue-open">(OP 11:00)</span></th>
                 </tr>
             </thead>
             <tbody id="timetable-body">
@@ -314,80 +320,121 @@
     </div>
 
 <script>
-// 画像より完全抽出した10/18ライブ・物販データ
 const liveData = {
-    "梅田 amHALL": [
-        {start: "10:45", end: "11:05", name: "#BEMYLOVE", goods: "A", goodsStart: "11:10", goodsEnd: "12:10"},
-        {start: "11:05", end: "11:25", name: "ハピネスクラッカー！", goods: "B", goodsStart: "11:30", goodsEnd: "12:30"},
-        {start: "11:25", end: "11:45", name: "ЯiM:MiR", goods: "C", goodsStart: "11:50", goodsEnd: "12:50"},
-        {start: "11:45", end: "11:50", name: "調整"},
-        {start: "11:50", end: "12:10", name: "てんぽぷりも♪", goods: "A", goodsStart: "12:15", goodsEnd: "13:15"},
-        {start: "12:10", end: "12:30", name: "あおぞらをキミに", goods: "B", goodsStart: "12:35", goodsEnd: "13:35"},
-        {start: "12:30", end: "12:50", name: "にぃよん！", goods: "C", goodsStart: "12:55", goodsEnd: "13:55"},
-        {start: "12:50", end: "12:55", name: "調整"},
-        {start: "12:55", end: "13:15", name: "Poifull", goods: "A", goodsStart: "13:20", goodsEnd: "14:20"},
-        {start: "13:15", end: "13:35", name: "SANUGLOW", goods: "B", goodsStart: "13:40", goodsEnd: "14:40"},
-        {start: "13:35", end: "13:55", name: "脳内パステル", goods: "C", goodsStart: "14:00", goodsEnd: "15:00"},
-        {start: "13:55", end: "14:00", name: "調整"},
-        {start: "14:00", end: "14:20", name: "W. ダブルヴィー", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
-        {start: "14:20", end: "14:40", name: "Qu♡Aly", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
-        {start: "14:40", end: "15:00", name: "キューハチパーセント！", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
-        {start: "15:15", end: "16:15", name: "中物販"},
-        {start: "16:30", end: "16:50", name: "入場開始"},
-        {start: "16:50", end: "17:10", name: "ワッツ◎さーくる", goods: "A", goodsStart: "17:15", goodsEnd: "18:15"},
-        {start: "17:10", end: "17:30", name: "NEO BREAK", goods: "B", goodsStart: "17:35", goodsEnd: "18:35"},
-        {start: "17:30", end: "17:50", name: "SPRISE", goods: "C", goodsStart: "17:55", goodsEnd: "18:55"},
-        {start: "17:50", end: "17:55", name: "調整"},
-        {start: "17:55", end: "18:15", name: "すーぱーぷーばぁー!!", goods: "A", goodsStart: "18:20", goodsEnd: "19:20"},
-        {start: "18:15", end: "18:35", name: "宇宙∞プラネクシア", goods: "B", goodsStart: "18:40", goodsEnd: "19:40"},
-        {start: "18:35", end: "18:55", name: "脳内パステル", goods: "C", goodsStart: "19:00", goodsEnd: "20:00"},
-        {start: "18:55", end: "19:00", name: "調整"},
-        {start: "19:00", end: "19:20", name: "Qu♡Aly", goods: "終演後", goodsStart: "20:10", goodsEnd: "21:10"},
-        {start: "19:20", end: "19:40", name: "W. ダブルヴィー", goods: "終演後", goodsStart: "20:10", goodsEnd: "21:10"},
-        {start: "19:40", end: "20:00", name: "ワッツ◎さーくる", goods: "終演後", goodsStart: "20:10", goodsEnd: "21:10"},
-        {start: "20:10", end: "21:10", name: "終演後物販"}
+    "amHALL": [
+        {start: "09:30", end: "10:00", name: "OPEN (前半)"},
+        {start: "10:00", end: "10:25", name: "anemoreel", goods: "中間・終演後", goodsStart: "-", goodsEnd: "-"},
+        {start: "10:25", end: "10:50", name: "宇宙∞プラネクシア", goods: "中間・終演後", goodsStart: "-", goodsEnd: "-"},
+        {start: "10:50", end: "11:15", name: "LAST PIECE", goods: "中間・終演後", goodsStart: "-", goodsEnd: "-"},
+        {start: "11:15", end: "11:40", name: "tune time capsule", goods: "中間・終演後", goodsStart: "-", goodsEnd: "-"},
+        {start: "11:40", end: "12:05", name: "ワッツ◎さーくる", goods: "中間・終演後", goodsStart: "-", goodsEnd: "-"},
+        {start: "12:15", end: "13:15", name: "中間物販"},
+        {start: "13:30", end: "13:50", name: "再入場 OPEN"},
+        {start: "13:50", end: "14:15", name: "おちゃメンタル☆パーティー", goods: "終演後", goodsStart: "16:00", goodsEnd: "17:00"},
+        {start: "14:15", end: "14:40", name: "NEO BREAK", goods: "終演後", goodsStart: "16:00", goodsEnd: "17:00"},
+        {start: "14:40", end: "15:05", name: "#PANnana", goods: "終演後", goodsStart: "16:00", goodsEnd: "17:00"},
+        {start: "15:05", end: "15:30", name: "サクヤコノハナ", goods: "終演後", goodsStart: "16:00", goodsEnd: "17:00"},
+        {start: "15:30", end: "15:55", name: "W.ダブルヴィー", goods: "終演後", goodsStart: "16:00", goodsEnd: "17:00"},
+        {start: "16:00", end: "17:00", name: "終演後物販"},
+        {start: "18:00", end: "18:30", name: "OPEN (夜の部)"},
+        {start: "18:30", end: "19:10", name: "Qu♡Aly", goods: "終演後", goodsStart: "20:40", goodsEnd: "22:00"},
+        {start: "19:10", end: "19:50", name: "脳内パステル", goods: "終演後", goodsStart: "20:40", goodsEnd: "22:00"},
+        {start: "19:50", end: "20:30", name: "すーぱーぷーばぁー!!", goods: "終演後", goodsStart: "20:40", goodsEnd: "22:00"},
+        {start: "20:40", end: "22:00", name: "終演後特典会"}
     ],
-    "ODYSSEY": [
-        {start: "10:45", end: "11:05", name: "+Alpha", goods: "ODYSSEYロビー①", goodsStart: "11:25", goodsEnd: "12:25"},
-        {start: "11:05", end: "11:25", name: "キューハチパーセント！", goods: "D", goodsStart: "12:40", goodsEnd: "13:40"},
-        {start: "11:25", end: "11:45", name: "宇宙∞プラネクシア", goods: "E", goodsStart: "12:40", goodsEnd: "13:40"},
-        {start: "11:45", end: "11:50", name: "調整"},
-        {start: "11:50", end: "12:10", name: "ChanceMovement", goods: "F", goodsStart: "12:40", goodsEnd: "13:40"},
-        {start: "12:10", end: "12:30", name: "Para Milia", goods: "D", goodsStart: "12:50", goodsEnd: "13:50"},
-        {start: "12:30", end: "12:50", name: "ちょこみんと", goods: "E", goodsStart: "13:10", goodsEnd: "14:10"},
-        {start: "12:50", end: "12:55", name: "調整"},
-        {start: "12:55", end: "13:15", name: "ボクセカ", goods: "F", goodsStart: "13:35", goodsEnd: "14:35"},
-        {start: "13:15", end: "13:35", name: "Hello♡DayDream!", goods: "D", goodsStart: "13:55", goodsEnd: "14:55"},
-        {start: "13:35", end: "13:55", name: "NEO BREAK", goods: "E", goodsStart: "14:15", goodsEnd: "15:15"},
-        {start: "13:55", end: "14:00", name: "調整"},
-        {start: "14:00", end: "14:20", name: "COzMIC ぱれーど", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
-        {start: "14:20", end: "14:40", name: "星もつもれば惑星となる！", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
-        {start: "14:40", end: "15:00", name: "ハピネスクラッカー！", goods: "中物販", goodsStart: "15:15", goodsEnd: "16:15"},
-        {start: "15:15", end: "16:15", name: "中物販"},
-        {start: "16:30", end: "16:50", name: "入場開始"},
-        {start: "16:50", end: "17:10", name: "ChanceMovement", goods: "D", goodsStart: "17:30", goodsEnd: "18:30"},
-        {start: "17:10", end: "17:30", name: "なにわばれっと", goods: "E", goodsStart: "17:50", goodsEnd: "18:50"},
-        {start: "17:30", end: "17:50", name: "Para Milia", goods: "F", goodsStart: "18:10", goodsEnd: "19:10"},
-        {start: "17:50", end: "17:55", name: "調整"},
-        {start: "17:55", end: "18:15", name: "Lumi Prima", goods: "D", goodsStart: "18:35", goodsEnd: "19:35"},
-        {start: "18:15", end: "18:35", name: "ЯiM:MiR", goods: "E", goodsStart: "18:55", goodsEnd: "19:55"},
-        {start: "18:35", end: "18:55", name: "あおぞらをキミに", goods: "F", goodsStart: "19:15", goodsEnd: "20:15"},
-        {start: "18:55", end: "19:00", name: "調整"},
-        {start: "19:00", end: "19:20", name: "Poifull", goods: "終演後", goodsStart: "20:20", goodsEnd: "21:20"},
-        {start: "19:20", end: "19:40", name: "星もつもれば惑星となる！", goods: "終演後", goodsStart: "20:20", goodsEnd: "21:20"},
-        {start: "19:40", end: "20:00", name: "にぃよん！", goods: "終演後", goodsStart: "20:20", goodsEnd: "21:20"},
-        {start: "20:00", end: "20:20", name: "ボクセカ", goods: "終演後", goodsStart: "20:20", goodsEnd: "21:20"},
-        {start: "20:30", end: "21:30", name: "終演後物販"}
+    "Zepp Namba": [
+        {start: "11:40", end: "12:20", name: "OPEN (11:40〜)"},
+        {start: "12:20", end: "12:40", name: "AI♡RARA", goods: "並行A", goodsStart: "12:55", goodsEnd: "13:55"},
+        {start: "12:40", end: "13:00", name: "ЯiM:MiR", goods: "並行B", goodsStart: "13:15", goodsEnd: "14:15"},
+        {start: "13:00", end: "13:20", name: "Merry Mellow", goods: "並行C", goodsStart: "13:35", goodsEnd: "14:35"},
+        {start: "13:20", end: "13:40", name: "ちょこみんと", goods: "並行D", goodsStart: "13:55", goodsEnd: "14:55"},
+        {start: "13:40", end: "13:45", name: "調整時間"},
+        {start: "13:45", end: "14:05", name: "すーぱーぷーばぁー!!", goods: "並行A", goodsStart: "14:20", goodsEnd: "15:20"},
+        {start: "14:05", end: "14:25", name: "Fille mimi", goods: "並行B", goodsStart: "14:40", goodsEnd: "15:40"},
+        {start: "14:25", end: "14:45", name: "脳内パステル", goods: "並行C", goodsStart: "15:00", goodsEnd: "16:00"},
+        {start: "14:45", end: "15:05", name: "ヒロインズ研究生大阪", goods: "並行D", goodsStart: "15:20", goodsEnd: "16:20"},
+        {start: "15:05", end: "15:10", name: "調整時間"},
+        {start: "15:10", end: "15:30", name: "Qu♡Aly", goods: "並行A", goodsStart: "15:45", goodsEnd: "16:45"},
+        {start: "15:30", end: "15:50", name: "ワッツ◎さーくる", goods: "並行B", goodsStart: "16:05", goodsEnd: "17:05"},
+        {start: "15:50", end: "16:10", name: "キューハチパーセント！", goods: "並行C", goodsStart: "16:25", goodsEnd: "17:25"},
+        {start: "16:10", end: "16:30", name: "スキトオルアオ", goods: "並行D", goodsStart: "16:45", goodsEnd: "17:45"},
+        {start: "16:30", end: "16:35", name: "調整時間"},
+        {start: "16:35", end: "16:55", name: "あおぞらをキミに", goods: "並行A", goodsStart: "17:10", goodsEnd: "18:10"},
+        {start: "16:55", end: "17:15", name: "tune time capsule", goods: "並行B", goodsStart: "17:30", goodsEnd: "18:30"},
+        {start: "17:15", end: "17:35", name: "LAST PIECE", goods: "並行C", goodsStart: "17:50", goodsEnd: "18:50"},
+        {start: "17:35", end: "17:55", name: "anemoreel", goods: "並行D", goodsStart: "18:10", goodsEnd: "19:10"},
+        {start: "17:55", end: "18:15", name: "シンデレラ宣言！", goods: "並行A", goodsStart: "18:30", goodsEnd: "19:30"},
+        {start: "18:15", end: "18:35", name: "宇宙∞プラネクシア", goods: "並行B", goodsStart: "18:50", goodsEnd: "19:50"},
+        {start: "18:35", end: "18:40", name: "調整時間"},
+        {start: "18:40", end: "19:00", name: "NEO BREAK", goods: "並行C", goodsStart: "19:15", goodsEnd: "20:15"},
+        {start: "19:00", end: "19:20", name: "サクヤコノハナ", goods: "終演後", goodsStart: "20:25", goodsEnd: "21:25"},
+        {start: "19:20", end: "19:40", name: "君に、胸キュン。", goods: "終演後", goodsStart: "20:25", goodsEnd: "21:25"},
+        {start: "19:40", end: "20:00", name: "W.ダブルヴィー", goods: "終演後", goodsStart: "20:25", goodsEnd: "21:25"},
+        {start: "20:00", end: "20:20", name: "ナナコロビヤオキ", goods: "終演後", goodsStart: "20:25", goodsEnd: "21:25"},
+        {start: "20:25", end: "21:25", name: "終演後特典会"}
+    ],
+    "心斎橋VARON": [
+        {start: "10:00", end: "10:20", name: "OPEN (10:00〜)"},
+        {start: "10:20", end: "10:45", name: "わんだふる×ぱにっく", goods: "並行A", goodsStart: "10:50", goodsEnd: "11:50"},
+        {start: "10:45", end: "11:10", name: "青春シロップ", goods: "並行B", goodsStart: "11:15", goodsEnd: "12:15"},
+        {start: "11:10", end: "11:35", name: "ALONYS", goods: "並行C", goodsStart: "11:40", goodsEnd: "12:40"},
+        {start: "11:35", end: "12:00", name: "da-gashi☆", goods: "並行A", goodsStart: "12:05", goodsEnd: "13:05"},
+        {start: "12:05", end: "12:30", name: "ミケネコガールズ", goods: "並行B", goodsStart: "12:35", goodsEnd: "13:35"},
+        {start: "12:30", end: "12:55", name: "ハピネスクラッカー！", goods: "並行C", goodsStart: "13:00", goodsEnd: "14:00"},
+        {start: "12:55", end: "13:20", name: "てんぽぷりも♪", goods: "並行A", goodsStart: "13:25", goodsEnd: "14:25"},
+        {start: "13:20", end: "13:45", name: "LINK START", goods: "並行B", goodsStart: "13:50", goodsEnd: "14:50"},
+        {start: "13:50", end: "14:15", name: "リリシック学園", goods: "並行C", goodsStart: "14:20", goodsEnd: "15:20"},
+        {start: "14:15", end: "14:40", name: "すぃーとふりる", goods: "並行A", goodsStart: "14:45", goodsEnd: "15:45"},
+        {start: "14:40", end: "15:05", name: "Poifull", goods: "並行B", goodsStart: "15:10", goodsEnd: "16:10"},
+        {start: "15:05", end: "15:30", name: "Morpho", goods: "並行C", goodsStart: "15:35", goodsEnd: "16:35"},
+        {start: "15:35", end: "16:00", name: "KiMiNiAiTAi", goods: "並行A", goodsStart: "16:05", goodsEnd: "17:05"},
+        {start: "16:00", end: "16:25", name: "NaNiYoRi", goods: "並行B", goodsStart: "16:30", goodsEnd: "17:30"},
+        {start: "16:25", end: "16:50", name: "異次元ポケットドール Team Venus", goods: "並行C", goodsStart: "16:55", goodsEnd: "17:55"},
+        {start: "16:50", end: "17:15", name: "にゃあにゃあ", goods: "並行A", goodsStart: "17:20", goodsEnd: "18:20"},
+        {start: "17:20", end: "17:45", name: "Nody", goods: "並行B", goodsStart: "17:50", goodsEnd: "18:50"},
+        {start: "17:45", end: "18:10", name: "キミだけの花言葉", goods: "並行C", goodsStart: "18:15", goodsEnd: "19:15"},
+        {start: "18:10", end: "18:35", name: "リボンのないぷれぜんと", goods: "並行A", goodsStart: "18:40", goodsEnd: "19:40"},
+        {start: "18:35", end: "19:00", name: "ちょこみんと", goods: "並行B", goodsStart: "19:00", goodsEnd: "20:00"},
+        {start: "19:05", end: "19:30", name: "MeluCharm", goods: "終演後", goodsStart: "20:50", goodsEnd: "21:50"},
+        {start: "19:30", end: "19:55", name: "Fille mimi", goods: "終演後", goodsStart: "20:50", goodsEnd: "21:50"},
+        {start: "19:55", end: "20:20", name: "Merry Mellow", goods: "終演後", goodsStart: "20:50", goodsEnd: "21:50"},
+        {start: "20:20", end: "20:45", name: "キューハチパーセント！", goods: "終演後", goodsStart: "20:50", goodsEnd: "21:50"},
+        {start: "20:50", end: "21:50", name: "終演後物販"}
+    ],
+    "OSAKA RUIDO": [
+        {start: "11:00", end: "11:20", name: "OPEN (11:00〜)"},
+        {start: "11:20", end: "11:45", name: "#PANnana", goods: "並行A", goodsStart: "11:50", goodsEnd: "12:50"},
+        {start: "11:45", end: "12:10", name: "+Alpha", goods: "並行B", goodsStart: "12:15", goodsEnd: "13:15"},
+        {start: "12:10", end: "12:35", name: "感情線は時をこえて", goods: "並行C", goodsStart: "12:40", goodsEnd: "13:40"},
+        {start: "12:35", end: "13:00", name: "スキトオルアオ", goods: "並行A", goodsStart: "13:05", goodsEnd: "14:05"},
+        {start: "13:05", end: "13:30", name: "Nody", goods: "中物販", goodsStart: "14:50", goodsEnd: "15:50"},
+        {start: "13:30", end: "13:55", name: "MeluCharm", goods: "中物販", goodsStart: "14:50", goodsEnd: "15:50"},
+        {start: "13:55", end: "14:20", name: "ChanceMovement", goods: "中物販", goodsStart: "14:50", goodsEnd: "15:50"},
+        {start: "14:20", end: "14:45", name: "ParaMilia", goods: "中物販", goodsStart: "14:50", goodsEnd: "15:50"},
+        {start: "14:50", end: "15:50", name: "中物販"},
+        {start: "16:00", end: "16:20", name: "再入場・再整列"},
+        {start: "16:20", end: "16:45", name: "i Moon", goods: "並行A", goodsStart: "16:50", goodsEnd: "17:50"},
+        {start: "16:45", end: "17:10", name: "Serenade", goods: "並行B", goodsStart: "17:15", goodsEnd: "18:15"},
+        {start: "17:10", end: "17:35", name: "すぃーとふりる", goods: "並行C", goodsStart: "17:40", goodsEnd: "18:40"},
+        {start: "17:35", end: "18:00", name: "CLANCROWN", goods: "並行A", goodsStart: "18:05", goodsEnd: "19:05"},
+        {start: "18:00", end: "18:25", name: "Poifull", goods: "並行B", goodsStart: "18:30", goodsEnd: "19:30"},
+        {start: "18:30", end: "18:55", name: "matatabi", goods: "並行C", goodsStart: "19:00", goodsEnd: "20:00"},
+        {start: "18:55", end: "19:20", name: "BUGGTE!", goods: "終演後", goodsStart: "20:40", goodsEnd: "21:40"},
+        {start: "19:20", end: "19:45", name: "星もつもれば惑星となる！", goods: "終演後", goodsStart: "20:40", goodsEnd: "21:40"},
+        {start: "19:45", end: "20:10", name: "わんみゅーず！", goods: "終演後", goodsStart: "20:40", goodsEnd: "21:40"},
+        {start: "20:10", end: "20:35", name: "キミだけの花言葉", goods: "終演後", goodsStart: "20:40", goodsEnd: "21:40"},
+        {start: "20:40", end: "21:40", name: "終演後物販"}
     ]
 };
 
-const startTimeStr = "10:45";
-const endTimeStr = "21:30";
-const venues = ["梅田 amHALL", "ODYSSEY"];
+// amHALLが09:30に開場するため、表の開始時間を調整
+const startTimeStr = "09:30";
+const endTimeStr = "22:00";
+const venues = ["amHALL", "Zepp Namba", "心斎橋VARON", "OSAKA RUIDO"];
 
 let favorites = {};
 try {
-    const savedData = localStorage.getItem('timetable_favs_1018');
+    const savedData = localStorage.getItem('timetable_favs_1025_v2');
     if (savedData) {
         favorites = JSON.parse(savedData);
     }
@@ -440,7 +487,10 @@ try {
                 const duration = timeToMin(matched.end) - timeToMin(matched.start);
                 const liveTimeText = `${matched.start}-${matched.end}`;
                 
-                if (matched.name.includes("調整") || matched.name.includes("入場開始") || matched.name.includes("物販")) {
+                if (matched.name.includes("OPEN")) {
+                    td.innerHTML = `🚪 ${matched.name}<span class="cell-time-sub">${liveTimeText}</span>`;
+                    td.className = "open-cell";
+                } else if (matched.name.includes("調整") || matched.name.includes("物販") || matched.name.includes("再入場") || matched.name.includes("特典会")) {
                     td.innerHTML = `${matched.name}<span class="cell-time-sub">${liveTimeText} (${duration}分)</span>`;
                     td.className = "break-cell";
                 } else {
@@ -511,30 +561,14 @@ function applyFavStyle(element, state, name, duration, liveTimeText) {
     element.innerHTML = `${titlePrefix}${name}<span class="cell-time-sub">${liveTimeText} (${duration}分)</span>`;
 }
 
-// 📦 物販会場の文字列を生成する関数（画像下部の案内に準拠）
-function getDetailedLocation(goodsType) {
+function getDetailedLocation(venue, goodsType) {
     if (!goodsType || goodsType === "なし" || goodsType === "-") {
         return "情報なし・公式SNS等をご参照ください";
     }
-    
-    // A,B,C は amHALL ロビー
-    if (goodsType === "A" || goodsType === "B" || goodsType === "C") {
-        return `梅田 amHALL ロビー [${goodsType}]`;
+    if (goodsType.includes("終演後") || goodsType.includes("中物販") || goodsType.includes("中間")) {
+        return `${venue} 内 指定エリア（${goodsType}）`;
     }
-    // D,E,F は 三共梅田ビル B1F
-    if (goodsType === "D" || goodsType === "E" || goodsType === "F") {
-        return `三共梅田ビル 梅田 B1F レンタルスペース貸会議室<br><span class="warning-text">⚠️ 会場外への移動が必要です [${goodsType}]</span>`;
-    }
-    // ODYSSEYロビー
-    if (goodsType === "ODYSSEYロビー①") {
-        return `ODYSSEY ロビー①`;
-    }
-    // 中物販・終演後など
-    if (goodsType === "中物販" || goodsType === "終演後" || goodsType === "終演後物販") {
-        return `各ライブハウス内 (${goodsType})`;
-    }
-    
-    return `${goodsType} (会場指定スペース)`;
+    return `${venue} 指定物販スペース [${goodsType}]`;
 }
 
 const modal = document.getElementById('goods-modal');
@@ -544,7 +578,7 @@ function openGoodsModal(artistObj, duration, liveTimeText, currentVenue) {
     document.getElementById('modal-artist-name').textContent = artistObj.name;
     document.getElementById('modal-live-venue').textContent = currentVenue;
     
-    const locationHTML = getDetailedLocation(artistObj.goods);
+    const locationHTML = getDetailedLocation(currentVenue, artistObj.goods);
     document.getElementById('modal-goods-location').innerHTML = locationHTML;
     
     if(artistObj.goodsStart && artistObj.goodsEnd && artistObj.goodsStart !== "-") {
@@ -579,7 +613,7 @@ function handleOshiChange(nextState) {
     
     favorites[selectedArtist] = nextState;
     try {
-        localStorage.setItem('timetable_favs_1018', JSON.stringify(favorites));
+        localStorage.setItem('timetable_favs_1025_v2', JSON.stringify(favorites));
     } catch(e) {
         console.warn("お気に入り機能の保存が制限されています");
     }
@@ -634,7 +668,7 @@ function updateTimeline() {
                     const e = timeToMin(item.end);
                     return nowTotalMin >= s && nowTotalMin < e;
                 });
-                if (matched && !matched.name.includes("調整") && !matched.name.includes("入場開始") && !matched.name.includes("物販")) {
+                if (matched && !matched.name.includes("調整") && !matched.name.includes("物販") && !matched.name.includes("再入場") && !matched.name.includes("特典会") && !matched.name.includes("OPEN")) {
                     const headMin = Math.floor(timeToMin(matched.start) / 5) * 5;
                     const activeCell = document.getElementById(`cell-${headMin}-${vIndex}`);
                     if (activeCell) activeCell.classList.add("active-live");
