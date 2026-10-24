@@ -11,6 +11,7 @@
             --zepp-color: #e83e8c;
             --varon-color: #e74c3c;
             --ruido-color: #f39c12;
+            --drop-color: #9b59b6; /* DROP追加用カラー */
         }
         * {
             box-sizing: border-box;
@@ -62,7 +63,7 @@
         table {
             border-collapse: collapse;
             width: 100%;
-            min-width: 700px;
+            min-width: 850px; /* DROP分を追加して広めに設定 */
             position: relative;
         }
         
@@ -92,6 +93,7 @@
         th.zepp { background-color: var(--zepp-color); }
         th.varon { background-color: var(--varon-color); }
         th.ruido { background-color: var(--ruido-color); }
+        th.drop { background-color: var(--drop-color); }
         
         .venue-open {
             font-size: 0.7rem;
@@ -142,7 +144,7 @@
             font-weight: normal;
         }
 
-        /* 💛 推し1（薄い黄色） */
+        /* 💛 推し1 */
         .fav-oshi1 {
             background-color: #fff8dc !important;
             color: #b8860b !important;
@@ -151,7 +153,7 @@
         }
         .fav-oshi1 .cell-time-sub { color: #b8860b !important; }
         
-        /* 🧡 推し2（薄いオレンジ） */
+        /* 🧡 推し2 */
         .fav-oshi2 {
             background-color: #fce4d6 !important;
             color: #c65911 !important;
@@ -160,7 +162,7 @@
         }
         .fav-oshi2 .cell-time-sub { color: #c65911 !important; }
 
-        /* 💚 整理（薄い緑） */
+        /* 💚 	&#x1f9cd; */
         .fav-seiri {
             background-color: #e2f0d9 !important;
             color: #385723 !important;
@@ -311,6 +313,7 @@
                     <th class="zepp">Zepp Namba<span class="venue-open">(OP 11:40)</span></th>
                     <th class="varon">心斎橋VARON<span class="venue-open">(OP 10:00)</span></th>
                     <th class="ruido">OSAKA RUIDO<span class="venue-open">(OP 11:00)</span></th>
+                    <th class="drop">DROP<span class="venue-open">(OP 11:20)</span></th>
                 </tr>
             </thead>
             <tbody id="timetable-body">
@@ -445,17 +448,25 @@ const liveData = {
         {start: "19:45", end: "20:10", name: "わんみゅーず！", goods: "終演後", goodsStart: "20:40", goodsEnd: "21:40"},
         {start: "20:10", end: "20:35", name: "キミだけの花言葉", goods: "終演後", goodsStart: "20:40", goodsEnd: "21:40"},
         {start: "20:40", end: "21:40", name: "終演後物販"}
+    ],
+    "DROP": [
+        {start: "11:20", end: "11:40", name: "OPEN (11:20〜)"},
+        {start: "11:40", end: "12:10", name: "W.ダブルヴィー", goods: "並行", goodsStart: "12:15", goodsEnd: "13:20"},
+        {start: "12:10", end: "12:40", name: "すべての瞬間は君だった。", goods: "終演後", goodsStart: "13:20", goodsEnd: "14:20"},
+        {start: "12:40", end: "13:10", name: "シンデレラ宣言！", goods: "終演後", goodsStart: "13:20", goodsEnd: "14:20"},
+        {start: "13:10", end: "13:20", name: "調整時間 (終演)"},
+        {start: "13:20", end: "14:20", name: "終演後特典会"}
     ]
 };
 
 // amHALLが09:30に開場するため、表の開始時間を調整
 const startTimeStr = "09:30";
 const endTimeStr = "22:00";
-const venues = ["amHALL", "Zepp Namba", "心斎橋VARON", "OSAKA RUIDO"];
+const venues = ["amHALL", "Zepp Namba", "心斎橋VARON", "OSAKA RUIDO", "DROP"];
 
 let favorites = {};
 try {
-    const savedData = localStorage.getItem('timetable_favs_1025_v3');
+    const savedData = localStorage.getItem('timetable_favs_1025_v4');
     if (savedData) {
         favorites = JSON.parse(savedData);
     }
@@ -639,7 +650,7 @@ function handleOshiChange(nextState) {
     
     favorites[selectedArtist] = nextState;
     try {
-        localStorage.setItem('timetable_favs_1025_v3', JSON.stringify(favorites));
+        localStorage.setItem('timetable_favs_1025_v4', JSON.stringify(favorites));
     } catch(e) {
         console.warn("お気に入り機能の保存が制限されています");
     }
