@@ -80,7 +80,7 @@
             top: 0;
             color: white;
             z-index: 10;
-            height: 40px;
+            height: 55px; 
         }
         th.time-header {
             background-color: #2c3e50;
@@ -93,6 +93,14 @@
         th.varon { background-color: var(--varon-color); }
         th.ruido { background-color: var(--ruido-color); }
         
+        .venue-open {
+            font-size: 0.7rem;
+            font-weight: normal;
+            display: block;
+            margin-top: 3px;
+            opacity: 0.9;
+        }
+
         .time-col {
             width: 90px;
             font-weight: bold;
@@ -103,7 +111,6 @@
             border-right: 2px solid #bdc3c7;
         }
         
-        /* 調整時間や物販のセル */
         .break-cell {
             background-color: #f2f2f2 !important;
             color: #7f7f7f;
@@ -111,7 +118,6 @@
             pointer-events: none;
         }
         
-        /* 開場（OPEN）のセル：薄い青色に変更 */
         .open-cell {
             background-color: #e6f2ff !important;
             color: #2980b9;
@@ -136,14 +142,16 @@
             font-weight: normal;
         }
 
+        /* 💛 推し1（薄い黄色） */
         .fav-oshi1 {
-            background-color: #e2f0d9 !important;
-            color: #385723 !important;
+            background-color: #fff8dc !important;
+            color: #b8860b !important;
             font-weight: bold;
-            box-shadow: inset 0 0 0 2px #70ad47 !important;
+            box-shadow: inset 0 0 0 2px #daa520 !important;
         }
-        .fav-oshi1 .cell-time-sub { color: #385723 !important; }
+        .fav-oshi1 .cell-time-sub { color: #b8860b !important; }
         
+        /* 🧡 推し2（薄いオレンジ） */
         .fav-oshi2 {
             background-color: #fce4d6 !important;
             color: #c65911 !important;
@@ -151,6 +159,15 @@
             box-shadow: inset 0 0 0 2px #ed7d31 !important;
         }
         .fav-oshi2 .cell-time-sub { color: #c65911 !important; }
+
+        /* 💚 整理（薄い緑） */
+        .fav-seiri {
+            background-color: #e2f0d9 !important;
+            color: #385723 !important;
+            font-weight: bold;
+            box-shadow: inset 0 0 0 2px #70ad47 !important;
+        }
+        .fav-seiri .cell-time-sub { color: #385723 !important; }
 
         .active-live {
             position: relative;
@@ -205,8 +222,8 @@
             background: white;
             padding: 20px;
             border-radius: 12px;
-            width: 85%;
-            max-width: 360px;
+            width: 90%;
+            max-width: 400px;
             text-align: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             animation: modalPop 0.2s ease-out;
@@ -234,12 +251,14 @@
         .oshi-btn-group {
             display: flex;
             justify-content: space-between;
-            gap: 8px;
+            flex-wrap: wrap;
+            gap: 6px;
             margin-bottom: 15px;
         }
         .oshi-btn {
             flex: 1;
-            padding: 8px 0;
+            min-width: 45%;
+            padding: 8px 4px;
             font-size: 0.8rem;
             font-weight: bold;
             border: 1px solid #ccc;
@@ -247,8 +266,9 @@
             cursor: pointer;
             background-color: #fff;
         }
-        .oshi-btn.btn-oshi1 { background-color: #e2f0d9; color: #385723; border-color: #70ad47; }
+        .oshi-btn.btn-oshi1 { background-color: #fff8dc; color: #b8860b; border-color: #daa520; }
         .oshi-btn.btn-oshi2 { background-color: #fce4d6; color: #c65911; border-color: #ed7d31; }
+        .oshi-btn.btn-seiri { background-color: #e2f0d9; color: #385723; border-color: #70ad47; }
         .oshi-btn.active { box-shadow: 0 0 0 3px #333; }
         
         .close-btn {
@@ -311,8 +331,9 @@
                 <div class="goods-info-line">🕒 <b>物販時間:</b> <span id="modal-goods-time">-</span></div>
             </div>
             <div class="oshi-btn-group">
-                <button class="oshi-btn btn-oshi1" id="btn-set-oshi1">★ 推し1</button>
-                <button class="oshi-btn btn-oshi2" id="btn-set-oshi2">🔥 推し2</button>
+                <button class="oshi-btn btn-oshi1" id="btn-set-oshi1">☆☆ 推し1</button>
+                <button class="oshi-btn btn-oshi2" id="btn-set-oshi2">☆ 推し2</button>
+                <button class="oshi-btn btn-seiri" id="btn-set-seiri">&#x1f9cd;</button>
                 <button class="oshi-btn" id="btn-set-normal">解除</button>
             </div>
             <button class="close-btn" id="btn-modal-close">閉じる</button>
@@ -434,7 +455,7 @@ const venues = ["amHALL", "Zepp Namba", "心斎橋VARON", "OSAKA RUIDO"];
 
 let favorites = {};
 try {
-    const savedData = localStorage.getItem('timetable_favs_1025_v2');
+    const savedData = localStorage.getItem('timetable_favs_1025_v3');
     if (savedData) {
         favorites = JSON.parse(savedData);
     }
@@ -549,14 +570,17 @@ try {
 }
 
 function applyFavStyle(element, state, name, duration, liveTimeText) {
-    element.classList.remove('fav-oshi1', 'fav-oshi2');
+    element.classList.remove('fav-oshi1', 'fav-oshi2', 'fav-seiri');
     let titlePrefix = "";
     if (state === 1) {
         element.classList.add('fav-oshi1');
-        titlePrefix = "★ ";
+        titlePrefix = "☆☆ ";
     } else if (state === 2) {
         element.classList.add('fav-oshi2');
-        titlePrefix = "🔥 ";
+        titlePrefix = "☆ ";
+    } else if (state === 3) {
+        element.classList.add('fav-seiri');
+        titlePrefix = "&#x1f9cd; ";
     }
     element.innerHTML = `${titlePrefix}${name}<span class="cell-time-sub">${liveTimeText} (${duration}分)</span>`;
 }
@@ -597,10 +621,12 @@ function openGoodsModal(artistObj, duration, liveTimeText, currentVenue) {
 function updateModalOshiButtons(state) {
     document.getElementById('btn-set-oshi1').classList.remove('active');
     document.getElementById('btn-set-oshi2').classList.remove('active');
+    document.getElementById('btn-set-seiri').classList.remove('active');
     document.getElementById('btn-set-normal').classList.remove('active');
     
     if(state === 1) document.getElementById('btn-set-oshi1').classList.add('active');
     else if(state === 2) document.getElementById('btn-set-oshi2').classList.add('active');
+    else if(state === 3) document.getElementById('btn-set-seiri').classList.add('active');
     else document.getElementById('btn-set-normal').classList.add('active');
 }
 
@@ -613,7 +639,7 @@ function handleOshiChange(nextState) {
     
     favorites[selectedArtist] = nextState;
     try {
-        localStorage.setItem('timetable_favs_1025_v2', JSON.stringify(favorites));
+        localStorage.setItem('timetable_favs_1025_v3', JSON.stringify(favorites));
     } catch(e) {
         console.warn("お気に入り機能の保存が制限されています");
     }
@@ -622,6 +648,7 @@ function handleOshiChange(nextState) {
 
 document.getElementById('btn-set-oshi1').addEventListener('click', () => handleOshiChange(1));
 document.getElementById('btn-set-oshi2').addEventListener('click', () => handleOshiChange(2));
+document.getElementById('btn-set-seiri').addEventListener('click', () => handleOshiChange(3));
 document.getElementById('btn-set-normal').addEventListener('click', () => handleOshiChange(0));
 
 document.getElementById('btn-modal-close').addEventListener('click', () => {
